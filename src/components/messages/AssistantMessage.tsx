@@ -32,6 +32,7 @@ import { ReadAloudButton } from './ReadAloudButton.js'
 import { CopyButton } from './CopyButton.js'
 import { DeleteBranchModal } from './DeleteBranchModal.js'
 import { GeneratedImage } from './GeneratedImage.js'
+import { SongCard } from './SongCard.js'
 import { ReplyArea } from './ReplyArea.js'
 import { useReplyView } from './useReplyView.js'
 import {
@@ -84,6 +85,9 @@ export const AssistantMessage = memo(function AssistantMessage({
   const generatedImages = refused
     ? []
     : message.blocks.flatMap((block, index) => (block.type === 'image' ? [{ block, index }] : []))
+  const songs = refused
+    ? []
+    : message.blocks.flatMap((block, index) => (block.type === 'song' ? [{ block, index }] : []))
   const copyText = responseText || notice?.text
   /** 命中缓存读取的输入 token（服务端前缀缓存命中部分，单价更低） */
   const cachedInputTokens = message.usage?.cache_read_input_tokens ?? 0
@@ -204,6 +208,13 @@ export const AssistantMessage = memo(function AssistantMessage({
                   block={block}
                   busy={busy}
                 />
+              ))}
+            </div>
+          ) : null}
+          {songs.length > 0 ? (
+            <div className={styles.generatedImages}>
+              {songs.map(({ block, index }) => (
+                <SongCard key={`${message.id}-song-${index}`} song={block} />
               ))}
             </div>
           ) : null}

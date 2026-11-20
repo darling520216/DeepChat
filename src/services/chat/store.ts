@@ -10,6 +10,7 @@ import {
   streamResponsesMessage,
 } from '../api/openai.js'
 import { getApiOrigin } from '../api/origin.js'
+import { pollSingJob, submitSingJob } from '../api/sing.js'
 import type { ChatModel, CreateMessageRequest, MessageUsage } from '../api/types.js'
 import {
   extractFileIds,
@@ -44,6 +45,7 @@ import {
 import { createLatestReminder } from './latestReminder.js'
 import { buildCrossChatMemory } from './memory.js'
 import { extractMemoriesFromTurn, formatSavedMemories } from './savedMemory.js'
+import type { SongPart } from './types.js'
 import {
   applyEvent,
   canContinueReply,
@@ -655,7 +657,7 @@ const submitPrompt = (
   targetSessionId: string | null,
   text: string,
   files: SubmittedPromptFile[],
-  options: { voiceCall?: boolean; imageGen?: boolean } = {}
+  options: { voiceCall?: boolean; imageGen?: boolean; sing?: boolean } = {}
 ): { sessionId: string; replyId: string } | null => {
   const now = Date.now()
   let sessionId = targetSessionId
@@ -713,7 +715,9 @@ const submitPrompt = (
   }
   persist(sessionId)
   if (!localRefused) {
-    if (options.imageGen) {
+    if (options.sing) {
+      void runSingGeneration(sessionId, reply, text)
+    } else if (options.imageGen) {
       const sourceFileIds = files.filter((file) => file.isImage).map((file) => file.id)
       void runImageGeneration(sessionId, reply, text, sourceFileIds)
     } else {
@@ -1765,6 +1769,89 @@ const runImageGeneration = async (
  * 补传失败时回复记为 upload 错误，可重试。
  * 服务端判定 file_id 失效时重新补传后重发，退避重试且次数有上限，超过则按原始报错收尾。
  */
+/** 提交点歌请求：走唱歌通道生成翻唱音频；成功后回复里携带歌曲块。 */
+export const sendSingRequest = (targetSessionId: string | null, song: string): boolean => {
+  const trimmed = song.trim()
+  if (!trimmed || get().importingHistory || !get().ready) {
+    return false
+  }
+  const submitted = submitPrompt(targetSessionId, translate('singRequestText', { song: trimmed }), [], {
+    sing: true,
+  })
+  return submitted !== null
+}
+
+/** 唱歌通道生成：提交任务 → 轮询 → 回复写入歌曲块（结构与生图流程一致） */
+const runSingGeneration = async (
+  sessionId: string,
+  initial: AssistantMessage,
+  song: string
+) => {
+  const { singChannel } = useSettings.getState()
+  const controller = new AbortController()
+  set((state) => ({ streaming: { ...state.streaming, [sessionId]: controller } }))
+  let reply = initial
+  try {
+    const jobId = await submitSingJob(singChannel, song, controller.signal)
+    const result = await pollSingJob(singChannel, jobId, {
+      signal: controller.signal,
+      onProgress: (seconds) => {
+        reply = {
+          ...reply,
+          status: 'streaming',
+          blocks: [
+            {
+              type: 'text',
+              text: translate('singWaiting', { song, seconds: Math.round(seconds) }),
+            },
+          ],
+        }
+        updateReply(sessionId, reply)
+      },
+    })
+    const songBlock: SongPart = {
+      type: 'song',
+      song,
+      audioUrl: result.audioUrl,
+      title: result.title,
+      artist: result.artist,
+      durationSeconds: result.durationSeconds,
+      cached: result.cached,
+      voice: singChannel.voice,
+    }
+    reply = {
+      ...reply,
+      status: 'done',
+      stopReason: 'end_turn',
+      blocks: [songBlock],
+    }
+  } catch (error) {
+    if (controller.signal.aborted) {
+      reply = settleReply(reply, 'stopped', Date.now())
+    } else if (error instanceof ApiError) {
+      reply = settleReply(reply, 'error', Date.now(), {
+        kind: error.kind,
+        message: error.message,
+        status: error.status,
+        localMessage: error.localMessage,
+      })
+    } else {
+      reply = settleReply(reply, 'error', Date.now(), {
+        kind: 'protocol',
+        message: error instanceof Error ? error.message : String(error),
+      })
+    }
+  } finally {
+    updateReply(sessionId, reply)
+    set((state) => ({
+      streaming: Object.fromEntries(
+        Object.entries(state.streaming).filter(([id]) => id !== sessionId)
+      ),
+    }))
+    persist(sessionId)
+  }
+}
+
 const streamReply = async (sessionId: string, initial: AssistantMessage, request: Request) => {
   const controller = new AbortController()
   if (!getSession(sessionId)?.title) {

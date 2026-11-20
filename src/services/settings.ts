@@ -41,6 +41,25 @@ export type ImageGenChannelConfig = {
   requireConfirm: boolean
 }
 
+/** 唱歌通道模式：flowbee 免部署按次计费；selfhosted 自建 sing-gateway */
+export type SingMode = 'flowbee' | 'selfhosted'
+
+export type SingChannelConfig = {
+  mode: SingMode
+  baseUrl: string
+  apiKey: string
+  /** 默认音色；留空用网关默认 */
+  voice: string
+  /** 翻唱片段长度（秒） */
+  duration: number
+  /** 片段起始位置（秒） */
+  start: number
+  /** 升降调（半音） */
+  pitch: number
+  /** 是否带伴奏 */
+  instrumental: boolean
+}
+
 const EMPTY_CHANNEL: ServiceChannelConfig = {
   mode: 'inherit',
   baseUrl: '',
@@ -62,6 +81,20 @@ const DEFAULT_IMAGE_GEN_CHANNEL: ImageGenChannelConfig = {
   size: 'auto',
   customHeaders: '',
   requireConfirm: true,
+}
+
+/** FlowBee 官方网关地址（免部署，按次计费） */
+export const FLOWBEE_BASE_URL = 'https://flowbee.top/v1'
+
+const DEFAULT_SING_CHANNEL: SingChannelConfig = {
+  mode: 'flowbee',
+  baseUrl: FLOWBEE_BASE_URL,
+  apiKey: '',
+  voice: '',
+  duration: 25,
+  start: 60,
+  pitch: 0,
+  instrumental: false,
 }
 
 export const DEFAULT_MODEL = 'deepseek-flash'
@@ -109,6 +142,7 @@ export type Settings = {
   visionChannel: ServiceChannelConfig
   ocrChannel: ServiceChannelConfig
   imageGenChannel: ImageGenChannelConfig
+  singChannel: SingChannelConfig
   // 协议与工具开关
   safetyCheck: boolean
   readUrl: boolean
@@ -167,6 +201,7 @@ const KEYS = {
   visionChannel: 'chat-demo:vision-channel',
   ocrChannel: 'chat-demo:ocr-channel',
   imageGenChannel: 'chat-demo:image-gen-channel',
+  singChannel: 'chat-demo:sing-channel',
   safetyCheck: 'chat-demo:safety-check',
   readUrl: 'chat-demo:read-url',
   sendLatestReminder: 'chat-demo:send-latest-reminder',
@@ -320,6 +355,37 @@ const readImageGenChannel = (key: string): ImageGenChannelConfig => {
   }
 }
 
+const readSingChannel = (key: string): SingChannelConfig => {
+  try {
+    const parsed: unknown = JSON.parse(read(key) ?? 'null')
+    if (typeof parsed !== 'object' || parsed === null) {
+      return { ...DEFAULT_SING_CHANNEL }
+    }
+    const obj = parsed as Record<string, unknown>
+    return {
+      mode: obj.mode === 'selfhosted' ? 'selfhosted' : 'flowbee',
+      baseUrl: typeof obj.baseUrl === 'string' && obj.baseUrl ? obj.baseUrl : DEFAULT_SING_CHANNEL.baseUrl,
+      apiKey: typeof obj.apiKey === 'string' ? obj.apiKey : '',
+      voice: typeof obj.voice === 'string' ? obj.voice : '',
+      duration:
+        typeof obj.duration === 'number' && Number.isFinite(obj.duration)
+          ? Math.min(600, Math.max(5, Math.round(obj.duration)))
+          : DEFAULT_SING_CHANNEL.duration,
+      start:
+        typeof obj.start === 'number' && Number.isFinite(obj.start)
+          ? Math.min(3600, Math.max(0, Math.round(obj.start)))
+          : DEFAULT_SING_CHANNEL.start,
+      pitch:
+        typeof obj.pitch === 'number' && Number.isFinite(obj.pitch)
+          ? Math.min(24, Math.max(-24, Math.round(obj.pitch)))
+          : DEFAULT_SING_CHANNEL.pitch,
+      instrumental: obj.instrumental === true,
+    }
+  } catch {
+    return { ...DEFAULT_SING_CHANNEL }
+  }
+}
+
 const initialThinkingEffort = (): ThinkingEffort => {
   const value = read(KEYS.thinkingEffort)
   return value === 'low' || value === 'high' || value === 'max' || value === 'xhigh' ? value : 'low'
@@ -382,6 +448,7 @@ export const useSettings = create<Settings>(() => ({
   visionChannel: readChannel(KEYS.visionChannel),
   ocrChannel: readChannel(KEYS.ocrChannel),
   imageGenChannel: readImageGenChannel(KEYS.imageGenChannel),
+  singChannel: readSingChannel(KEYS.singChannel),
   safetyCheck: readBool(KEYS.safetyCheck, true),
   readUrl: readBool(KEYS.readUrl, true),
   sendLatestReminder: readBool(KEYS.sendLatestReminder, true),
@@ -523,6 +590,11 @@ export const setImageGenChannel = (imageGenChannel: ImageGenChannelConfig) => {
   useSettings.setState({ imageGenChannel })
 }
 
+export const setSingChannel = (singChannel: SingChannelConfig) => {
+  write(KEYS.singChannel, JSON.stringify(singChannel))
+  useSettings.setState({ singChannel })
+}
+
 export const setApiOrigin = (apiOrigin: string) => {
   write(KEYS.apiOrigin, apiOrigin ? apiOrigin : null)
   setRuntimeApiOrigin(apiOrigin)
@@ -661,6 +733,7 @@ export const resetModelAndPolicySettings = () => {
   setOcrChannel({ ...EMPTY_CHANNEL })
   setImageGenChannel({ ...DEFAULT_IMAGE_GEN_CHANNEL })
   setImageGen(false)
+  setSingChannel({ ...DEFAULT_SING_CHANNEL })
   setSafetyCheck(true)
   setReadUrl(true)
   setSendLatestReminder(true)

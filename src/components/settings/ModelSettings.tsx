@@ -26,6 +26,7 @@ import {
   setRefusalMessage,
   setSafetyCheck,
   setSendLatestReminder,
+  setSingChannel,
   setSystemPrompt,
   setTemperature,
   setTopP,
@@ -42,6 +43,7 @@ import {
   CapabilityChannelCard,
   ImageGenChannelCard,
   ModelFetcherInput,
+  SingChannelCard,
 } from './ChannelConfigField.js'
 import styles from './Settings.module.css'
 
@@ -577,6 +579,11 @@ export const ModelSettings = ({
           fallbackCustomHeaders={settings.customHeaders}
           onChange={setImageGenChannel}
         />
+      </div>
+
+      <div className={styles.groupTitle}>{t('modelSettingsSectionSing')}</div>
+      <div className={styles.cell}>
+        <SingChannelCard channel={settings.singChannel} onChange={setSingChannel} />
       </div>
 
       <div className={styles.groupTitle}>{t('modelSettingsSectionProtocol')}</div>

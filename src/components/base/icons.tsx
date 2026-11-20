@@ -656,6 +656,22 @@ export const IconImageGen14 = () => (
   </svg>
 )
 
+/** 音符（双联八分音符）：唱歌通道入口 */
+export const IconMusicNote16 = () => (
+  <svg width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="4.4" cy="12.7" rx="2" ry="1.7" fill="currentColor" />
+    <ellipse cx="11.4" cy="11.7" rx="2" ry="1.7" fill="currentColor" />
+    <path
+      d="M6.4 12.7V3.4L13.4 2V11.7"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path d="M6.4 3.4L13.4 2V4.3L6.4 5.8Z" fill="currentColor" />
+  </svg>
+)
+
 export const IconPlusOutline18 = () => (
   <svg width={18} height={18} viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path

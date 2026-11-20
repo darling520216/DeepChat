@@ -17,6 +17,7 @@ import {
   IconGalleryOutline22,
   IconGlobeLanguageOutline14,
   IconImageGen14,
+  IconMusicNote16,
   IconPlusOutline18,
   IconSendOutline16,
   IconStopFill16,
@@ -56,6 +57,7 @@ import { ACCEPT, useUploads } from '../../services/attachments.js'
 import { getAndroidProxyOrigin, getAndroidProxyToken } from '../../services/api/origin.js'
 import { DraftAttachments } from './DraftAttachments.js'
 import { ImageSizePicker } from '../messages/ImageSizePicker.js'
+import { SingModal } from './SingModal.js'
 import { useVoiceInput } from './useVoiceInput.js'
 import { Spectrum } from './Spectrum.js'
 import { useTranslate } from '../../i18n/index.js'
@@ -85,6 +87,8 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
   const imageGen = useSettings((state) => state.imageGen)
   const imageGenChannel = useSettings((state) => state.imageGenChannel)
   const imageGenReady = imageGenChannel.enabled && Boolean(imageGenChannel.model.trim())
+  const singReady = Boolean(useSettings((state) => state.singChannel).apiKey.trim())
+  const [singOpen, setSingOpen] = useState(false)
   const hasImageAttachment = attachments.some((item) => item.isImage)
   const [plusOpen, setPlusOpen] = useState(false)
   const [effortMenuOpen, setEffortMenuOpen] = useState(false)
@@ -741,6 +745,24 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
                 <span className={styles.toggleLabel}>{t('imageGenSwitch')}</span>
               </button>
             </Tooltip>
+            <Tooltip content={t('singTooltip')}>
+              <button
+                type="button"
+                className={clsx(styles.toggle)}
+                aria-label={t('singToggle')}
+                onClick={() => {
+                  if (!singReady) {
+                    showToast({ key: 'singNotConfigured' })
+                    openSettings('model')
+                    return
+                  }
+                  setSingOpen(true)
+                }}
+              >
+                <IconMusicNote16 />
+                <span className={styles.toggleLabel}>{t('singToggle')}</span>
+              </button>
+            </Tooltip>
             {imageGen && imageGenReady ? (
               <ImageSizePicker
                 compact
@@ -885,6 +907,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
         </div>
       </div>
       {dragging ? <DragMask /> : null}
+      <SingModal open={singOpen} onClose={() => setSingOpen(false)} />
     </div>
   )
 }

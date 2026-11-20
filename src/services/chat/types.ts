@@ -74,8 +74,22 @@ export type ImagePart = {
   error?: string
 }
 
+/** 唱歌块：唱歌通道生成的翻唱音频，audioUrl 为网关公开缓存直链 */
+export type SongPart = {
+  type: 'song'
+  /** 用户点的歌名（或音频直链） */
+  song: string
+  audioUrl: string
+  title: string
+  artist: string
+  durationSeconds: number
+  /** 命中网关缓存时为 true */
+  cached: boolean
+  voice: string
+}
+
 /** 服务端工具调用与结果块按协议原样保存；历史请求只回传 read_link 调用与结果 */
-export type ReplyBlock = ThinkingPart | TextPart | ImagePart | ServerToolBlock
+export type ReplyBlock = ThinkingPart | TextPart | ImagePart | SongPart | ServerToolBlock
 
 /**
  * pending：已发出请求，还没收到事件；streaming：正在接收；

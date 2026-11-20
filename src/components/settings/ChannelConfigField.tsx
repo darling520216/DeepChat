@@ -6,8 +6,11 @@ import type {
   ImageGenChannelConfig,
   ServiceChannelConfig,
   ServiceChannelMode,
+  SingChannelConfig,
+  SingMode,
   TtsChannelConfig,
 } from '../../services/settings.js'
+import { FLOWBEE_BASE_URL } from '../../services/settings.js'
 import { Button } from '../base/Button.js'
 import { Select, type SelectOption } from '../base/Select.js'
 import styles from './Settings.module.css'
@@ -293,6 +296,134 @@ export const ImageGenChannelCard = ({
           </div>
         </div>
       ) : null}
+    </div>
+  )
+}
+
+/** 唱歌通道配置：FlowBee 免部署 / 自建 sing-gateway 两种模式 + 翻唱参数 */
+export const SingChannelCard = ({
+  channel,
+  onChange,
+}: {
+  channel: SingChannelConfig
+  onChange: (next: SingChannelConfig) => void
+}) => {
+  const t = useTranslate()
+
+  const modeOptions: SelectOption<SingMode>[] = [
+    { value: 'flowbee', label: t('singModeFlowbee') },
+    { value: 'selfhosted', label: t('singModeSelfhosted') },
+  ]
+
+  return (
+    <div className={styles.channelCard}>
+      <div className={styles.channelCardHeader}>
+        <div className={styles.text}>
+          <div className={styles.label}>{t('channelSingTitle')}</div>
+          <div className={styles.description}>{t('channelSingDesc')}</div>
+        </div>
+      </div>
+      <div className={styles.channelBody}>
+        <div className={styles.paramItem}>
+          <span className={styles.paramLabel}>{t('singModeLabel')}</span>
+          <Select
+            value={channel.mode}
+            options={modeOptions}
+            onChange={(mode) =>
+              onChange({
+                ...channel,
+                mode,
+                baseUrl: mode === 'flowbee' ? FLOWBEE_BASE_URL : channel.baseUrl,
+              })
+            }
+          />
+        </div>
+        <label className={styles.paramItem}>
+          <span className={styles.paramLabel}>{t('channelBaseUrlLabel')}</span>
+          <input
+            type="url"
+            className={styles.textInput}
+            placeholder={
+              channel.mode === 'flowbee' ? 'https://flowbee.top/v1' : 'http://127.0.0.1:9001/v1'
+            }
+            spellCheck={false}
+            value={channel.baseUrl}
+            onChange={(event) => onChange({ ...channel, baseUrl: event.target.value })}
+          />
+        </label>
+        <label className={styles.paramItem}>
+          <span className={styles.paramLabel}>{t('channelApiKeyLabel')}</span>
+          <input
+            type="password"
+            className={styles.textInput}
+            placeholder="sk-..."
+            autoComplete="off"
+            spellCheck={false}
+            value={channel.apiKey}
+            onChange={(event) => onChange({ ...channel, apiKey: event.target.value })}
+          />
+        </label>
+        <label className={styles.paramItem}>
+          <span className={styles.paramLabel}>{t('channelVoiceLabel')}</span>
+          <input
+            type="text"
+            className={styles.textInput}
+            placeholder="keine"
+            spellCheck={false}
+            value={channel.voice}
+            onChange={(event) => onChange({ ...channel, voice: event.target.value })}
+          />
+        </label>
+        <label className={styles.paramItem}>
+          <span className={styles.paramLabel}>{t('singDurationLabel')}</span>
+          <input
+            type="number"
+            min={5}
+            max={600}
+            className={styles.textInput}
+            value={channel.duration}
+            onChange={(event) => onChange({ ...channel, duration: Number(event.target.value) })}
+          />
+        </label>
+        <label className={styles.paramItem}>
+          <span className={styles.paramLabel}>{t('singStartLabel')}</span>
+          <input
+            type="number"
+            min={0}
+            max={3600}
+            className={styles.textInput}
+            value={channel.start}
+            onChange={(event) => onChange({ ...channel, start: Number(event.target.value) })}
+          />
+        </label>
+        <label className={styles.paramItem}>
+          <span className={styles.paramLabel}>{t('singPitchLabel')}</span>
+          <input
+            type="number"
+            min={-24}
+            max={24}
+            className={styles.textInput}
+            value={channel.pitch}
+            onChange={(event) => onChange({ ...channel, pitch: Number(event.target.value) })}
+          />
+        </label>
+        <div className={styles.channelCardHeader}>
+          <div className={styles.text}>
+            <div className={styles.label}>{t('singInstrumentalLabel')}</div>
+            <div className={styles.description}>{t('singInstrumentalDesc')}</div>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={channel.instrumental}
+            aria-label={t('singInstrumentalLabel')}
+            className={styles.switch}
+            onClick={() => onChange({ ...channel, instrumental: !channel.instrumental })}
+          >
+            <span className={styles.switchThumb} />
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
